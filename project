@@ -1,0 +1,275 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+import os
+from datetime import datetime, timedelta
+import math
+
+class BudgetTracker(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        # Titre et dimensions de la fenêtre principale
+        self.title("Personal Budget Tracker")
+        self.geometry("600x400")
+
+        # Variables et fichier pour sauvegarder les transactions
+        self.transactions = []
+        self.data_file_path = "transactions.txt"
+        self.load_data()  # Chargement des données depuis le fichier
+
+        # Lancement de la fenêtre de connexion
+        self.create_login_window()
+
+    def create_login_window(self):
+        """Création d'une fenêtre de connexion simple."""
+        self.login_window = tk.Toplevel(self)
+        self.login_window.title("Login")
+        self.login_window.geometry("300x200")
+
+        # Champs pour entrer le nom d'utilisateur et le mot de passe
+        self.username_label = ttk.Label(self.login_window, text="Username:")
+        self.username_label.pack(pady=5)
+        self.username_entry = ttk.Entry(self.login_window)
+        self.username_entry.pack(pady=5)
+
+        self.password_label = ttk.Label(self.login_window, text="Password:")
+        self.password_label.pack(pady=5)
+        self.password_entry = ttk.Entry(self.login_window, show='*')
+        self.password_entry.pack(pady=5)
+
+        # Bouton de connexion
+        self.login_button = ttk.Button(self.login_window, text="Login", command=self.verify_user)
+        self.login_button.pack(pady=20)
+
+    def verify_user(self):
+        """Vérifie les identifiants de l'utilisateur."""
+        username = self.username_entry.get()
+        password = self.password_entry.get()
+
+        # Authentification simplifiée : ici, on compare avec des valeurs fixées
+        if username == "admin" and password == "password":
+            self.login_window.destroy()  # Ferme la fenêtre de connexion
+            self.create_widgets()  # Charge les widgets de l'application principale
+        else:
+            messagebox.showerror("Login Error", "Invalid username or password.")
+
+    def create_widgets(self):
+        """Initialise les onglets principaux de l'application."""
+        self.notebook = ttk.Notebook(self)
+        self.notebook.pack(fill="both", expand=True)
+
+        # Création des différents onglets
+        self.create_input_tab()
+        self.create_view_tab()
+        self.create_summary_tab()
+        self.create_calculator_tab()  # Calculatrice intégrée
+
+        # Bouton pour quitter
+        self.exit_button = ttk.Button(self, text="Exit", command=self.exit_program)
+        self.exit_button.pack(pady=10)
+
+    def create_input_tab(self):
+        """Onglet pour ajouter une transaction."""
+        self.input_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.input_tab, text="Add Transaction")
+
+        # Sélection de la date pour la transaction
+        self.date_label = ttk.Label(self.input_tab, text="Date (YYYY-MM-DD):")
+        self.date_label.grid(row=0, column=0)
+        self.date_entry = ttk.Combobox(self.input_tab, values=self.generate_date_options())
+        self.date_entry.grid(row=0, column=1)
+
+        # Choix de la catégorie
+        self.source_label = ttk.Label(self.input_tab, text="Income Source (or Category):")
+        self.source_label.grid(row=1, column=0)
+        self.source_entry = ttk.Combobox(
+            self.input_tab,
+            values=["Salary", "Business", "Investment", "Gift", "Food", "Rent", "Utilities", "Transportation", "Entertainment", "Health"]
+        )
+        self.source_entry.grid(row=1, column=1)
+
+        # Entrée pour le montant
+        self.amount_label = ttk.Label(self.input_tab, text="Amount:")
+        self.amount_label.grid(row=2, column=0)
+        self.amount_entry = ttk.Entry(self.input_tab)
+        self.amount_entry.grid(row=2, column=1)
+
+        # Type de transaction
+        self.type_label = ttk.Label(self.input_tab, text="Type (Income/Expense):")
+        self.type_label.grid(row=3, column=0)
+        self.type_entry = ttk.Combobox(self.input_tab, values=["Income", "Expense"])
+        self.type_entry.grid(row=3, column=1)
+
+        self.add_button = ttk.Button(self.input_tab, text="Add Transaction", command=self.add_transaction)
+        self.add_button.grid(row=4, columnspan=2)
+
+    def generate_date_options(self):
+        """Génère une liste de dates sur les 90 derniers jours."""
+        date_options = []
+        today = datetime.now()
+        for i in range(90):
+            day = today - timedelta(days=i)
+            date_options.append(day.strftime("%Y-%m-%d"))
+        return date_options
+
+    def create_view_tab(self):
+        """Onglet pour afficher les transactions enregistrées."""
+        self.view_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.view_tab, text="View Transactions")
+
+        # Tableau pour afficher les transactions
+        self.tree = ttk.Treeview(self.view_tab, columns=("Date", "Category/Source", "Amount", "Type"), show='headings')
+        self.tree.heading("Date", text="Date")
+        self.tree.heading("Category/Source", text="Category/Source")
+        self.tree.heading("Amount", text="Amount")
+        self.tree.heading("Type", text="Type")
+        self.tree.pack(fill="both", expand=True)
+
+        self.load_treeview()
+
+    def create_summary_tab(self):
+        """Onglet pour afficher un résumé des transactions."""
+        self.summary_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.summary_tab, text="Summary")
+
+        # Résumé des revenus, dépenses et solde
+        self.summary_label = ttk.Label(self.summary_tab, text="Total Income: $0.00\nTotal Expenses: $0.00\nBalance: $0.00")
+        self.summary_label.pack(pady=20)
+
+        self.calculate_summary()
+
+    def create_calculator_tab(self):
+        """Onglet Calculatrice avec options de calcul d'hypoténuse et résolution d'équation quadratique."""
+        self.calc_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.calc_tab, text="Calculator")
+
+        # Calcul d'hypoténuse
+        ttk.Label(self.calc_tab, text="Side A:").grid(row=0, column=0)
+        self.side_a_entry = ttk.Entry(self.calc_tab)
+        self.side_a_entry.grid(row=0, column=1)
+
+        ttk.Label(self.calc_tab, text="Side B:").grid(row=1, column=0)
+        self.side_b_entry = ttk.Entry(self.calc_tab)
+        self.side_b_entry.grid(row=1, column=1)
+
+        self.calc_hypotenuse_button = ttk.Button(self.calc_tab, text="Calculate Hypotenuse", command=self.calculate_hypotenuse)
+        self.calc_hypotenuse_button.grid(row=2, columnspan=2)
+
+        self.hypotenuse_result = ttk.Label(self.calc_tab, text="")
+        self.hypotenuse_result.grid(row=3, columnspan=2)
+
+        # Résolution d'équation quadratique
+        ttk.Label(self.calc_tab, text="a:").grid(row=4, column=0)
+        self.a_entry = ttk.Entry(self.calc_tab)
+        self.a_entry.grid(row=4, column=1)
+
+        ttk.Label(self.calc_tab, text="b:").grid(row=5, column=0)
+        self.b_entry = ttk.Entry(self.calc_tab)
+        self.b_entry.grid(row=5, column=1)
+
+        ttk.Label(self.calc_tab, text="c:").grid(row=6, column=0)
+        self.c_entry = ttk.Entry(self.calc_tab)
+        self.c_entry.grid(row=6, column=1)
+
+        self.solve_quadratic_button = ttk.Button(self.calc_tab, text="Solve Quadratic", command=self.solve_quadratic)
+        self.solve_quadratic_button.grid(row=7, columnspan=2)
+
+        self.quadratic_result = ttk.Label(self.calc_tab, text="")
+        self.quadratic_result.grid(row=8, columnspan=2)
+
+    def calculate_hypotenuse(self):
+        """Calcul de l'hypoténuse d'un triangle rectangle donné les côtés A et B."""
+        try:
+            a = float(self.side_a_entry.get())
+            b = float(self.side_b_entry.get())
+            hypotenuse = math.sqrt(a**2 + b**2)
+            self.hypotenuse_result.config(text=f"Hypotenuse: {hypotenuse:.2f}")
+        except ValueError:
+            messagebox.showerror("Input Error", "Please enter valid numbers for sides A and B.")
+
+    def solve_quadratic(self):
+        """Résout l'équation quadratique ax^2 + bx + c = 0 et affiche les racines réelles."""
+        try:
+            a = float(self.a_entry.get())
+            b = float(self.b_entry.get())
+            c = float(self.c_entry.get())
+            discriminant = b**2 - 4*a*c
+            
+            if discriminant < 0:
+                self.quadratic_result.config(text="No real roots.")
+            elif discriminant == 0:
+                root = -b / (2*a)
+                self.quadratic_result.config(text=f"One root: {root:.2f}")
+            else:
+                root1 = (-b + math.sqrt(discriminant)) / (2*a)
+                root2 = (-b - math.sqrt(discriminant)) / (2*a)
+                self.quadratic_result.config(text=f"Roots: {root1:.2f} and {root2:.2f}")
+        except ValueError:
+            messagebox.showerror("Input Error", "Please enter valid numbers for a, b, and c.")
+        except ZeroDivisionError:
+            messagebox.showerror("Input Error", "Coefficient 'a' cannot be zero.")
+
+    def add_transaction(self):
+        """Ajoute une transaction si les données sont valides."""
+        date = self.date_entry.get()
+        source = self.source_entry.get()
+        try:
+            amount = float(self.amount_entry.get())
+        except ValueError:
+            messagebox.showerror("Input Error", "Please enter a valid amount.")
+            return
+        trans_type = self.type_entry.get()
+        
+        # Validation du type de transaction
+        if trans_type not in ["Income", "Expense"]:
+            messagebox.showerror("Input Error", "Type must be 'Income' or 'Expense'.")
+            return
+
+        # Ajout de la transaction et mise à jour du fichier
+        transaction = {"date": date, "source": source, "amount": amount, "type": trans_type}
+        self.transactions.append(transaction)
+        self.save_data()  # Enregistre la transaction
+        self.load_treeview()  # Recharge les transactions dans l'onglet View
+        self.calculate_summary()  # Met à jour le résumé
+        messagebox.showinfo("Success", "Transaction added successfully.")
+
+    def calculate_summary(self):
+        """Calcule et affiche les totaux des revenus, dépenses et solde."""
+        income = sum(t["amount"] for t in self.transactions if t["type"] == "Income")
+        expense = sum(t["amount"] for t in self.transactions if t["type"] == "Expense")
+        balance = income - expense
+        self.summary_label.config(text=f"Total Income: ${income:.2f}\nTotal Expenses: ${expense:.2f}\nBalance: ${balance:.2f}")
+
+    def load_treeview(self):
+        """Affiche les transactions sauvegardées dans le tableau."""
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        for transaction in self.transactions:
+            self.tree.insert("", "end", values=(transaction["date"], transaction["source"], f"${transaction['amount']:.2f}", transaction["type"]))
+
+    def load_data(self):
+        """Charge les données des transactions depuis un fichier texte."""
+        if os.path.exists(self.data_file_path):
+            with open(self.data_file_path, "r") as file:
+                for line in file:
+                    date, source, amount, trans_type = line.strip().split(",")
+                    self.transactions.append({
+                        "date": date,
+                        "source": source,
+                        "amount": float(amount),
+                        "type": trans_type
+                    })
+
+    def save_data(self):
+        """Enregistre les données des transactions dans un fichier texte."""
+        with open(self.data_file_path, "w") as file:
+            for transaction in self.transactions:
+                line = f"{transaction['date']},{transaction['source']},{transaction['amount']},{transaction['type']}\n"
+                file.write(line)
+
+    def exit_program(self):
+        """Quitte l'application."""
+        self.destroy()
+
+if __name__ == "__main__":
+    app = BudgetTracker()
+    app.mainloop()
